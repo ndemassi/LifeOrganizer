@@ -1,0 +1,164 @@
+let
+    //Designates a folder path for other queries in this Report
+    Source = "C:\Users\ndema\OneDrive\Documents\Life Organizer\"
+in
+    Source
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the current table
+    ExpensesTable_Current = Source{[Item="ExpensesTable_Current",Kind="Table"]}[Data],
+    //Change data types
+    #"Changed Type" = Table.TransformColumnTypes(ExpensesTable_Current,{{"Date", type date}, {"Location", type text}, {"Purchase", type text}, {"Price", Currency.Type}, {"Category", type text}, {"Purpose", type text}, {"Special Marker", type text}})
+in
+    #"Changed Type"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the withholdings table
+    WithholdingsTable_Table = Source{[Item="ExpensesTable_Withholdings",Kind="Table"]}[Data],
+    //Change the data types
+    #"Changed Type" = Table.TransformColumnTypes(WithholdingsTable_Table,{{"Date", type date}, {"Location", type text}, {"Purchase", type text}, {"Price", Currency.Type}, {"Category", type text}, {"Subcategory", type text}, {"Purpose", type text}})
+in
+    #"Changed Type"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the current table
+    ExpensesTable_Business = Source{[Item="ExpensesTable_Business",Kind="Table"]}[Data],
+    //Change data types
+    #"Changed Type" = Table.TransformColumnTypes(ExpensesTable_Business,{{"Date", type date}, {"Location", type text}, {"Purchase", type text}, {"Price", Currency.Type}, {"Category", type text}, {"Subcategory", type text}, {"Purpose", type text}, {"Special Marker", type text}})
+in
+    #"Changed Type"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the current table
+    ExpensesTable_Current = Source{[Item="ExpensesTable_Recurring",Kind="Table"]}[Data],
+    //Change data types
+    #"Changed Type" = Table.TransformColumnTypes(ExpensesTable_Current,{{"Date", type date}, {"Location", type text}, {"Purchase", type text}, {"Price", Currency.Type}, {"Category", type text}, {"Purpose", type text}, {"Special Marker", type text}})
+in
+    #"Changed Type"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the table of past expenses
+    ExpensesTable_Past = Source{[Item="ExpensesTable_Past",Kind="Table"]}[Data],
+    //Append the current expenses to create a complete, up-to-date table
+    #"Appended Query 1" = Table.Combine({ExpensesTable_Past, CurrentTable}),
+    //Append the withholdings
+    #"Appended Query 2" = Table.Combine({#"Appended Query 1", Withholdings}),
+    //Append the business expenses
+    #"Appended Query 3" = Table.Combine({#"Appended Query 2", BusinessExpenses}),
+    //Append the business expenses
+    #"Appended Query 4" = Table.Combine({#"Appended Query 3", RecurringTable}),
+    // Change some data types
+    #"Changed Type" = Table.TransformColumnTypes(#"Appended Query 4",{{"Location", type text}, {"Purchase", type text}, {"Category", type text}, {"Subcategory", type text}, {"Purpose", type text}, {"Price", Currency.Type}, {"Date", type date}, {"Special Marker", type text}}),
+    //Sorting by date and removing blanks, since that's helpful sometimes...
+    #"Sorted Rows" = Table.Sort(#"Changed Type",{{"Date", Order.Ascending}}),
+    #"Removed Blank Rows" = Table.SelectRows(#"Sorted Rows", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null})))
+in
+    #"Removed Blank Rows"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select income table
+    IncomeTable_Business = Source{[Item="IncomeTable_Business",Kind="Table"]}[Data],
+    //Changing data type
+    #"Changed Type" = Table.TransformColumnTypes(IncomeTable_Business,{{"Date", type date}, {"Amount", Currency.Type}, {"Source", type text}, {"Type", type text}}),
+    #"Removed Blank Rows" = Table.SelectRows(#"Changed Type", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null})))
+in
+    #"Removed Blank Rows"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select income table
+    InvestmentsTable = Source{[Item="InvestmentsTable",Kind="Table"]}[Data],
+    //Changed Data Type
+    #"Changed Type" = Table.TransformColumnTypes(InvestmentsTable,{{"Date", type date}, {"Interest: Non Retirement", Currency.Type}, {"Interest: Roth IRA", Currency.Type}, {"Capital Gains: All Accounts", Currency.Type}, {"Source", type text}}),
+    //Remove Blank Rows
+    #"Removed Blank Rows" = Table.SelectRows(#"Changed Type", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null}))),
+    //Switch from wide to long format
+    #"Unpivoted Columns" = Table.UnpivotOtherColumns(#"Removed Blank Rows", {"Date", "Source"}, "Attribute", "Value"),
+    //Reorder columns
+    #"Reordered Columns" = Table.ReorderColumns(#"Unpivoted Columns",{"Date", "Value", "Source", "Attribute"}),
+    //Change attribute and value columns to more meaningful names
+    #"Renamed Columns" = Table.RenameColumns(#"Reordered Columns",{{"Value", "Amount"}, {"Attribute", "Type"}})
+in
+    #"Renamed Columns"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select income table
+    IncomeTable_Table = Source{[Item="IncomeTable",Kind="Table"]}[Data],
+    //Append the business income to create a complete, up-to-date table
+    #"Appended Query 1" = Table.Combine({IncomeTable_Table, BusinessIncome}),
+    //Append Investments
+    #"Appended Query 2" = Table.Combine({#"Appended Query 1", Investments}),
+    //But, we don't want retirement account income, or capital gains, so let's remove those
+    #"Filtered Rows" = Table.SelectRows(#"Appended Query 2", each ([Type] <> "Capital Gains: All Accounts" and [Type] <> "Interest: Roth IRA")),
+    //Changing data type
+    #"Changed Type" = Table.TransformColumnTypes(#"Filtered Rows",{{"Date", type date}, {"Amount", Currency.Type}, {"Source", type text}, {"Type", type text}}),
+    //Renaming Amount to Income
+    #"Renamed Columns" = Table.RenameColumns(#"Changed Type",{{"Amount", "Income"}}),
+    #"Removed Blank Rows" = Table.SelectRows(#"Renamed Columns", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null})))
+in
+    #"Removed Blank Rows"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Exercise.xlsx"), null, true),
+    //Select the Exercise Table
+    ExerciseTable_Table = Source{[Item="ExerciseTable",Kind="Table"]}[Data],
+    //Change Data Type
+    #"Changed Type" = Table.TransformColumnTypes(ExerciseTable_Table,{{"Date", type date}, {"Type", type text}, {"Miles", type number}, {"Minutes", type number}, {"Min/Mi", type number}, {"AVG MPH", type number}, {"Elevation", type number}, {"Chest", type text}, {"Arms", type text}, {"Core/Abs", type text}, {"Glutes", type text}, {"Notes", type text}, {"Tracker", type text}, {"Legs", type text}}),
+    #"Removed Blank Rows" = Table.SelectRows(#"Changed Type", each not List.IsEmpty(List.RemoveMatchingItems(Record.FieldValues(_), {"", null})))
+in
+    #"Removed Blank Rows"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the budget table
+    Budget_Table = Source{[Item="Budget_Expenses",Kind="Table"]}[Data],
+    //Change data types
+    #"Changed Type" = Table.TransformColumnTypes(Budget_Table,{{"Category", type text}, {"Explanation", type text}, {"Personal", Int64.Type}, {"Work", type number}, {"Education", Int64.Type}, {"Bonus", Int64.Type}, {"Business", Int64.Type}, {"Charity", Int64.Type}, {"Stimulus", Int64.Type}, {"Total", type number}, {"Emergency Category", type logical}, {"Order", Int64.Type}}),
+    //Remove most of the unneeded columns
+    #"Removed Columns" = Table.RemoveColumns(#"Changed Type",{"Personal", "Work", "Education", "Bonus", "Business", "Charity", "Stimulus", "Total"})
+in
+    #"Removed Columns"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Expenses.xlsx"), null, true),
+    //Select the budget table
+    Budget_2021_Table = Source{[Item="Budget_Expenses",Kind="Table"]}[Data],
+    //Change data types
+    #"Changed Type 1" = Table.TransformColumnTypes(Budget_2021_Table,{{"Category", type text}, {"Explanation", type text}, {"Personal", Int64.Type}, {"Work", Int64.Type}, {"Education", Int64.Type}, {"Bonus", Int64.Type}, {"Business", Int64.Type}, {"Charity", Int64.Type}, {"Stimulus", Int64.Type}, {"Total", Int64.Type}}),
+    //Remove the total column, the explanation column, and emergency category column
+    #"Removed Columns" = Table.RemoveColumns(#"Changed Type 1",{"Total", "Emergency Category", "Explanation", "Order"}),
+    //Unpivot the purpose columns
+    #"Unpivoted Columns" = Table.UnpivotOtherColumns(#"Removed Columns", {"Category"}, "Attribute", "Value"),
+    //Rename columns
+    #"Renamed Columns" = Table.RenameColumns(#"Unpivoted Columns",{{"Attribute", "Purpose"}, {"Value", "Budget"}}),
+    //Change data type to currency
+    #"Changed Type 2" = Table.TransformColumnTypes(#"Renamed Columns",{{"Budget", Currency.Type}})
+in
+    #"Changed Type 2"
+
+let
+    //Source is "FolderPath" dependent
+    Source = Excel.Workbook(File.Contents(FolderPath&"Locations.xlsx"), null, true),
+    // Source is "FolderPath" dependent
+    Table1_Table = Source{[Item="Table1",Kind="Table"]}[Data],
+    #"Changed Type" = Table.TransformColumnTypes(Table1_Table,{{"Date", type date}, {"City", type text}, {"State", type text}, {"Country", type text}})
+in
+    #"Changed Type"

@@ -2,6 +2,7 @@
 
 ## Title
 *The Life Organizer* Repository
+![dashboard](dashboard.png)
 
 ## Description
 This serves as a repository for my Power BI Life Organizer dashboard and associated files.

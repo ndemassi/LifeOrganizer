@@ -1,4 +1,6 @@
 # Life Organizer Repo
+Click [Here](https://app.powerbi.com/view?r=eyJrIjoiOGRjNWU2N2EtMTMxNS00ZmVmLTk4OTgtYWExMjYyZjY5MmNlIiwidCI6IjkwNThmYjMwLTI0NzYtNDg4ZC1iNzAwLTYxYzExY2Q4NjdlNCJ9) to view the full organizer in Power BI.<br>
+Click [Here](https://app.powerbi.com/view?r=eyJrIjoiMTQxMDhjNzgtNDA5ZC00YThkLTkzZTMtZTliZWNmMGM1N2NmIiwidCI6IjkwNThmYjMwLTI0NzYtNDg4ZC1iNzAwLTYxYzExY2Q4NjdlNCJ9) for the Exercise Quick View.<br>
 
 ## Title
 *The Life Organizer* Repository
